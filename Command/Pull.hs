@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Command.Mint (pullCommand, mintCommand) where
+module Command.Pull (pullCommand) where
 
 import Control.Monad.Trans
 import Control.Monad.Trans.Resource
@@ -19,26 +19,7 @@ import Mint.Account
 import Mint.Category
 import Mint.Token
 import Mint.Transaction
-import Utils
-
-
-mintCommand :: [String] -> String -> IO ()
-mintCommand args flags = do
-    conn <- getDbConnection
-    instanceUUID <- getInstanceUUID conn
-
-    username <- prompt "Mint.com username: "
-    password <- prompt "Mint.com password: "
-
-    let arguments = [ "add-generic-password"
-                    , "-a", username
-                    , "-s", "manila:" ++ toString instanceUUID
-                    , "-w", password
-                    , "-U"
-                    ]
-
-    (exitCode, output, _) <- readProcessWithExitCode "security" arguments []
-    disconnect conn
+import Util
 
 
 pullCommand :: [String] -> String -> IO ()
@@ -74,16 +55,4 @@ scrape username password = do
         getCategoriesRequest
         downloadFile "project/transactions.csv" transactions
 
-    return ()
-
-
-retrievePassword :: IO ()
-retrievePassword = do
-    loginName <- getLoginName
-
-    -- Use instance id for the following service name
-    (exitCode, output, _) <- readProcessWithExitCode "security" ["find-generic-password", "-a", loginName,  "-s", "manila", "-w"] []
-    --case exitCode of
-    --    ExitSuccess -> T.strip . T.pack $ "retrieve: " ++ output
-    --    ExitFailure _ -> storePassword
     return ()

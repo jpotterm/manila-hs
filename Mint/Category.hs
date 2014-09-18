@@ -13,7 +13,7 @@ import Network.HTTP.Conduit
 import Network.HTTP.Conduit.Browser
 import Text.XML.HXT.Core
 
-import Utils
+import Util
 
 
 getCategoriesRequest :: BrowserAction ()

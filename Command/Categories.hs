@@ -4,7 +4,7 @@ import Data.List
 import Database.HDBC
 import Database.HDBC.Sqlite3
 
-import Utils
+import Util
 
 
 categoriesCommand :: [String] -> String -> IO ()

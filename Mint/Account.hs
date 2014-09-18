@@ -15,11 +15,11 @@ import Network.HTTP.Conduit
 import Network.HTTP.Conduit.Browser
 import Network.URI
 
-import Utils
+import Util
 
 
 data JsonAccount = JsonAccount { name           :: String
-                               , currentBalance :: Float
+                               , value :: Float
                                , isActive       :: Bool
                                } deriving (Show, Generic)
 instance FromJSON JsonAccount
@@ -82,7 +82,7 @@ updateAccounts jsonAccounts = do
 
 insertAccount :: Connection -> JsonAccount -> IO Integer
 insertAccount conn jsonAccount = do
-    let balance = (truncate $ currentBalance jsonAccount * 100) :: Integer
+    let balance = (truncate $ value jsonAccount * 100) :: Integer
     let accountName = (toSql . name) jsonAccount
 
     run conn "INSERT INTO account (balance, name) VALUES (?, ?)" [toSql balance, toSql accountName]

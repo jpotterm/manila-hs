@@ -6,7 +6,7 @@ import Data.UUID.V1
 import Database.HDBC
 import Database.HDBC.Sqlite3
 
-import Utils
+import Util
 import Command.Migrate
 
 

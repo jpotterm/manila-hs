@@ -9,7 +9,7 @@ import Database.HDBC.Sqlite3
 import System.Locale
 import Text.CSV
 
-import Utils
+import Util
 
 
 importTransactions :: IO ()

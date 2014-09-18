@@ -1,5 +1,6 @@
 module Main where
 
+import Data.Char (isLetter)
 import Data.List
 import Data.Maybe
 import System.Environment
@@ -10,11 +11,11 @@ import Command.Categories
 import Command.Envelope
 import Command.Init
 import Command.Migrate
-import Command.Mint
+import Command.Pull
 import Command.Rule
 import Command.Summary
 import Command.Transfer
-import Utils
+import Util
 
 
 data Command = Command { name :: String
@@ -38,11 +39,6 @@ commands = [ Command { name="init"
                      , function=helpCommand
                      , docArgs=""
                      , docDescription="Print this list"
-                     }
-           , Command { name="mint"
-                     , function=mintCommand
-                     , docArgs=""
-                     , docDescription="Setup Mint.com account credentials"
                      }
            , Command { name="pull"
                      , function=pullCommand
@@ -104,7 +100,8 @@ rowToBox keyWidth (key, help) = emptyBox 1 1 <> alignHoriz left keyWidth (text k
 
 
 isFlag :: String -> Bool
-isFlag (x:xs) = x == '-'
+isFlag (x:y:[]) = x == '-' && isLetter y
+isFlag _ = False
 
 
 dispatch :: [String] -> IO ()

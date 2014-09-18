@@ -1,6 +1,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 
-module Utils
+module Util
     ( executeSqlFile
     , updateOrInsert
     , trySql

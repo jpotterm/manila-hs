@@ -3,7 +3,7 @@ module Command.Transfer (transferCommand) where
 import Database.HDBC
 import Database.HDBC.Sqlite3
 
-import Utils
+import Util
 
 
 transferCommand :: [String] -> String -> IO ()

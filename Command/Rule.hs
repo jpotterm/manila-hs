@@ -4,7 +4,7 @@ module Command.Rule (listRulesCommand, addRuleCommand) where
 
 import Database.HDBC
 
-import Utils
+import Util
 
 
 listRulesCommand :: [String] -> String -> IO ()

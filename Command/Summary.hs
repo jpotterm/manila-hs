@@ -8,7 +8,7 @@ import Database.HDBC.Sqlite3
 import Text.PrettyPrint.Boxes
 
 import Currency
-import Utils
+import Util
 
 
 data SummaryRow a = Header a | Divider | Body a | Blank

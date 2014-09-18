@@ -3,7 +3,7 @@ module Command.Attach (attachCommand) where
 import Database.HDBC
 import Database.HDBC.Sqlite3
 
-import Utils
+import Util
 
 
 attachCommand :: [String] -> String -> IO ()

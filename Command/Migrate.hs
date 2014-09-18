@@ -6,7 +6,7 @@ import Database.HDBC.Sqlite3
 import System.IO
 import System.Directory
 
-import Utils
+import Util
 
 
 migrateCommand :: [String] -> String -> IO ()

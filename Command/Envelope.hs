@@ -3,7 +3,7 @@ module Command.Envelope (envelopeCommand) where
 import Database.HDBC
 import Database.HDBC.Sqlite3
 
-import Utils
+import Util
 
 
 envelopeCommand :: [String] -> String -> IO ()
