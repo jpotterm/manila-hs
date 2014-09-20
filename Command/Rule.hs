@@ -9,6 +9,7 @@ import Data.Time
 import Data.Time.Recurrence
 import Database.HDBC
 
+import Settings
 import Util
 
 
@@ -72,10 +73,6 @@ categoryRule (envelope:category:amount:[]) = do
     disconnect conn
 
 categoryRule _ = putStrLn "Command requires 3 arguments"
-
-
-frequencyMap :: [(String, Freq)]
-frequencyMap = [("daily", daily), ("monthly", monthly), ("yearly", yearly)]
 
 
 showKeys :: [(String, a)] -> String

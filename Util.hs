@@ -15,6 +15,7 @@ module Util
     , readInteger100
     , promptPassword
     , parseLocalTime
+    , numberOfOccurrences
     ) where
 
 import Control.Exception
@@ -22,7 +23,9 @@ import Control.Monad
 import Data.Char
 import Data.Convertible
 import Data.Maybe
+import Data.List
 import Data.Time
+import Data.Time.Recurrence (Freq, recur, starting)
 import Data.UUID (UUID, fromString)
 import Database.HDBC
 import Database.HDBC.Sqlite3
@@ -128,3 +131,8 @@ withEcho echo action = do
 
 parseLocalTime :: TimeZone -> String -> Maybe UTCTime
 parseLocalTime tz s = fmap (localTimeToUTC tz) $ parseTime defaultTimeLocale "%F %T" s
+
+
+numberOfOccurrences :: UTCTime -> UTCTime -> Freq -> Integer
+numberOfOccurrences start end frequency =
+    genericLength $ takeWhile (<= end) $ starting start $ recur frequency

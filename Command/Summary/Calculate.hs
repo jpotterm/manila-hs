@@ -10,6 +10,7 @@ import Text.PrettyPrint.Boxes
 
 import Command.Summary.Types
 import Currency
+import Settings
 import Util
 
 
@@ -44,11 +45,13 @@ calculateSummary = do
 
     disconnect conn
 
+    now <- getCurrentTime
+
     let timeRules = map timeRuleFromSql timeRulesResult
 
     let eBalancesMaybe = map calcEnvelopeBalance envelopesResult
     let eBalances = catMaybes eBalancesMaybe
-    let eBalancesWithRules = map (calcRules timeRules) eBalances
+    let eBalancesWithRules = map (calcRules now timeRules) eBalances
     let totalRemainingBalance = totalAccountBalance - envelopeSum eBalancesWithRules
 
     return (totalAccountBalance, eBalancesWithRules)
@@ -60,21 +63,24 @@ timeRuleFromSql (eName:amount:frequency:start:[]) =
     TimeRule (fromSql eName) (fromSql amount) (fromSql frequency) (fromSql start)
 
 
-calcRules :: [TimeRule] -> Envelope -> Envelope
-calcRules rules envelope = calcRelevantRules (filter (equalEnvelope envelope) rules) envelope
+calcRules :: UTCTime -> [TimeRule] -> Envelope -> Envelope
+calcRules now rules envelope = calcRelevantRules now (filter (equalEnvelope envelope) rules) envelope
     where equalEnvelope (Envelope eName _) (TimeRule rName _ _ _) = eName == rName
 
 
-calcRelevantRules :: [TimeRule] -> Envelope -> Envelope
-calcRelevantRules rules envelope = foldr calcRelevantRule envelope rules
+calcRelevantRules :: UTCTime -> [TimeRule] -> Envelope -> Envelope
+calcRelevantRules now rules envelope = foldr (calcRelevantRule now) envelope rules
 
 
-calcRelevantRule :: TimeRule -> Envelope -> Envelope
-calcRelevantRule (TimeRule _ rAmount frequency start) (Envelope eName eAmount) = Envelope eName (eAmount + rAmount)
+-- TODO: don't use fromJust, instead convert from database immediately
+calcRelevantRule :: UTCTime -> TimeRule -> Envelope -> Envelope
+calcRelevantRule now (TimeRule _ rAmount frequency start) (Envelope eName eAmount) =
+    let n = numberOfOccurrences start now (fromJust (lookup frequency frequencyMap))
+    in  Envelope eName (eAmount + n * rAmount)
 
 
 envelopeSum :: [Envelope] -> Integer
-envelopeSum = sum . map (\(Envelope name amount) -> amount)
+envelopeSum = sum . map (\(Envelope _ amount) -> amount)
 
 
 calcEnvelopeBalance :: [SqlValue] -> Maybe Envelope
