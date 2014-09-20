@@ -32,10 +32,20 @@ summaryCommand args flags = do
             ++ " ORDER BY envelope.name ASC")
         []
 
+    -- timeRulesResult <- quickQuery'
+    --     conn
+    --     ("SELECT envelope.name, time_rule.amount, time_rule.frequency, time_rule.start"
+    --         ++ " FROM envelope"
+    --         ++ " LEFT OUTER JOIN time_rule ON time_rule.envelope_id = envelope.id"
+    --         ++ " ORDER BY envelope.name ASC")
+    --     []
+
     disconnect conn
 
+    -- let timeRulesMaybe = map getTimeRule timeRulesResult
+
     let eBalancesMaybe = map calcEnvelopeBalance envelopesResult
-    let eBalances = map removeMaybes $ filter (not . hasNothingTuple) eBalancesMaybe
+    let eBalances = catMaybes eBalancesMaybe
     let summarizedEnvelopes = map summarizeEnvelope eBalances
 
     let totalRemainingBalance = totalAccountBalance - envelopeSum eBalances
@@ -49,30 +59,27 @@ summaryCommand args flags = do
     printBox $ vcat left $ map (boxRow leftWidth rightWidth) summary
 
 
+-- getTimeRule :: [SqlValue] -> Maybe (String, Integer, String, UTCTime)
+-- getTimeRule (eName:amount:frequency:start:[]) =
+--     case (safeFromSql eName,
+
+
 envelopeSum :: [(String, Integer)] -> Integer
 envelopeSum = sum . map (\(name, amount) -> amount)
 
 
-calcEnvelopeBalance :: [SqlValue] -> (Maybe String, Maybe Integer)
+calcEnvelopeBalance :: [SqlValue] -> Maybe (String, Integer)
 calcEnvelopeBalance (eName:eAmount:tAmount:[]) =
     case (safeFromSql eName, safeFromSql eAmount, safeFromSql tAmount) of
         (Right eNameConverted, Right eAmountConverted, Right tAmountConverted) ->
-            (Just eNameConverted, Just $ eAmountConverted - tAmountConverted)
+            Just (eNameConverted, eAmountConverted - tAmountConverted)
         (Right eNameConverted, Right eAmountConverted, _) ->
-            (Just eNameConverted, Just eAmountConverted)
-        (_, _, _) -> (Nothing, Nothing)
+            Just (eNameConverted, eAmountConverted)
+        otherwise -> Nothing
 
 
 summarizeEnvelope :: (String, Integer) -> SummaryRow (String, String)
 summarizeEnvelope (name, balance) = Body (name, formatCurrency balance)
-
-
-hasNothingTuple :: (Maybe String, Maybe Integer) -> Bool
-hasNothingTuple (a, b) = isNothing a && isNothing b
-
-
-removeMaybes :: (Maybe String, Maybe Integer) -> (String, Integer)
-removeMaybes (a, b) = (fromJust a, fromJust b)
 
 
 summaryRowLeftWidth :: SummaryRow (String, String) -> Int
