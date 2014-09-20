@@ -3,6 +3,7 @@ module Command.Summary (summaryCommand) where
 import Data.Either
 import Data.List
 import Data.Maybe
+import Data.Time
 import Database.HDBC
 import Database.HDBC.Sqlite3
 import Text.PrettyPrint.Boxes
@@ -32,23 +33,24 @@ summaryCommand args flags = do
             ++ " ORDER BY envelope.name ASC")
         []
 
-    -- timeRulesResult <- quickQuery'
-    --     conn
-    --     ("SELECT envelope.name, time_rule.amount, time_rule.frequency, time_rule.start"
-    --         ++ " FROM envelope"
-    --         ++ " LEFT OUTER JOIN time_rule ON time_rule.envelope_id = envelope.id"
-    --         ++ " ORDER BY envelope.name ASC")
-    --     []
+    timeRulesResult <- quickQuery'
+        conn
+        ("SELECT envelope.name, time_rule.amount, time_rule.frequency, time_rule.start"
+            ++ " FROM envelope"
+            ++ " LEFT OUTER JOIN time_rule ON time_rule.envelope_id = envelope.id"
+            ++ " ORDER BY envelope.name ASC")
+        []
 
     disconnect conn
 
-    -- let timeRulesMaybe = map getTimeRule timeRulesResult
+    let timeRules = map cleanTimeRule timeRulesResult
 
     let eBalancesMaybe = map calcEnvelopeBalance envelopesResult
     let eBalances = catMaybes eBalancesMaybe
-    let summarizedEnvelopes = map summarizeEnvelope eBalances
+    let eBalancesWithRules = map (calcRules timeRules) eBalances
+    let summarizedEnvelopes = map summarizeEnvelope eBalancesWithRules
 
-    let totalRemainingBalance = totalAccountBalance - envelopeSum eBalances
+    let totalRemainingBalance = totalAccountBalance - envelopeSum eBalancesWithRules
     let totalRow = ("Remaining Balance", formatCurrency totalRemainingBalance)
 
     let summary = (Header totalRow:Divider:summarizedEnvelopes)
@@ -59,9 +61,22 @@ summaryCommand args flags = do
     printBox $ vcat left $ map (boxRow leftWidth rightWidth) summary
 
 
--- getTimeRule :: [SqlValue] -> Maybe (String, Integer, String, UTCTime)
--- getTimeRule (eName:amount:frequency:start:[]) =
---     case (safeFromSql eName,
+cleanTimeRule :: [SqlValue] -> (String, Integer, String, UTCTime)
+cleanTimeRule (eName:amount:frequency:start:[]) =
+    (fromSql eName, fromSql amount, fromSql frequency, fromSql start)
+
+
+calcRules :: [(String, Integer, String, UTCTime)] -> (String, Integer) -> (String, Integer)
+calcRules rules envelope = calcRelevantRules (filter (equalEnvelope envelope) rules) envelope
+    where equalEnvelope (x, _) (y, _, _, _) = x == y
+
+
+calcRelevantRules :: [(String, Integer, String, UTCTime)] -> (String, Integer) -> (String, Integer)
+calcRelevantRules rules envelope = foldr calcRelevantRule envelope rules
+
+
+calcRelevantRule :: (String, Integer, String, UTCTime) -> (String, Integer) -> (String, Integer)
+calcRelevantRule (_, rAmount, frequency, start) (eName, eAmount) = (eName, eAmount + rAmount)
 
 
 envelopeSum :: [(String, Integer)] -> Integer
