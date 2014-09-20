@@ -14,6 +14,7 @@ module Util
     , defaultFromSql
     , readInteger100
     , promptPassword
+    , parseLocalTime
     ) where
 
 import Control.Exception
@@ -21,10 +22,12 @@ import Control.Monad
 import Data.Char
 import Data.Convertible
 import Data.Maybe
+import Data.Time
 import Data.UUID (UUID, fromString)
 import Database.HDBC
 import Database.HDBC.Sqlite3
 import System.IO
+import System.Locale (defaultTimeLocale)
 
 
 getDbConnection :: IO Connection
@@ -108,6 +111,7 @@ defaultFromSql x defaultValue =
 readInteger100 :: String -> Integer
 readInteger100 s = truncate $ (read s :: Float) * 100
 
+
 promptPassword :: String -> IO String
 promptPassword message = do
     putStr message
@@ -120,3 +124,7 @@ withEcho :: Bool -> IO a -> IO a
 withEcho echo action = do
     old <- hGetEcho stdin
     bracket_ (hSetEcho stdin echo) (hSetEcho stdin old) action
+
+
+parseLocalTime :: TimeZone -> String -> Maybe UTCTime
+parseLocalTime tz s = fmap (localTimeToUTC tz) $ parseTime defaultTimeLocale "%F %T" s

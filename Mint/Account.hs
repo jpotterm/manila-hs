@@ -18,9 +18,9 @@ import Network.URI
 import Util
 
 
-data JsonAccount = JsonAccount { name           :: String
-                               , value :: Float
-                               , isActive       :: Bool
+data JsonAccount = JsonAccount { name     :: String
+                               , value    :: Float
+                               , isActive :: Bool
                                } deriving (Show, Generic)
 instance FromJSON JsonAccount
 
@@ -28,12 +28,12 @@ instance FromJSON JsonAccount
 getAccountsRequest :: String -> BrowserAction (Response L.ByteString)
 getAccountsRequest token = do
     let encodedToken = escapeURIString isUnescapedInURI token
-    requestUrl <- parseUrl $ "https://wwws.mint.com/bundledServiceController.xevent?token=" ++ encodedToken
-    let requestMethod = requestUrl {method = "POST"}
+    requestUrl <- parseUrl $ "https://wwws.mint.com/bundledServiceController.xevent?legacy=false"
+    let requestMethod = requestUrl {method = "POST", requestHeaders = [("token", Data.ByteString.Char8.pack encodedToken)]}
     let input = "[{"
                     ++ "\"id\": \"1\","
                     ++ "\"service\": \"MintAccountService\","
-                    ++ "\"task\": \"getAccountsSorted\","
+                    ++ "\"task\": \"getAccountsSortedByBalanceDescending\","
                     ++ "\"args\": {"
                         ++ "\"types\": ["
                             ++ "\"BANK\","
@@ -51,6 +51,7 @@ getAccountsRequest token = do
 
     let request = urlEncodedBody [("input", Data.ByteString.Char8.pack input)] requestMethod
     response <- makeRequestLbs request
+
     let result = decode (responseBody response) :: Maybe Value
 
     case result of
@@ -62,7 +63,7 @@ getAccountsRequest token = do
             case fromJSON o3 :: Result [JsonAccount] of
                 Error message -> liftIO $ putStrLn ("fromJSON error: " ++ message)
                 Success jsonAccounts -> liftIO . updateAccounts $ filter isActive jsonAccounts
-        _ -> liftIO $ putStrLn "Decode error"
+        _ -> liftIO $ putStrLn $ "Decode error. Response was: " ++ show response
 
     return response
 

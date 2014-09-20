@@ -11,7 +11,6 @@ transferCommand (amountString:envelope:[]) flags = do
     conn <- getDbConnection
 
     let positiveAmount = readInteger100 amountString
-
     let amount = if 'r' `elem` flags then -1 * positiveAmount else positiveAmount
 
     currentAmountResult <- quickQuery' conn "SELECT amount FROM envelope WHERE name = ?" [toSql envelope]

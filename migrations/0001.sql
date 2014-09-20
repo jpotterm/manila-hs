@@ -52,7 +52,7 @@ CREATE TABLE IF NOT EXISTS category_rule (
     id INTEGER PRIMARY KEY,
     envelope_id INTEGER,
     category_id INTEGER,
-    amount VARCHAR(255) NOT NULL,
+    amount INTEGER NOT NULL DEFAULT 0,
 
     FOREIGN KEY(envelope_id) REFERENCES envelope(id),
     FOREIGN KEY(category_id) REFERENCES category(id)
@@ -61,8 +61,9 @@ CREATE TABLE IF NOT EXISTS category_rule (
 CREATE TABLE IF NOT EXISTS time_rule (
     id INTEGER PRIMARY KEY,
     envelope_id INTEGER,
-    schedule VARCHAR(255) NOT NULL,
-    amount VARCHAR(255) NOT NULL,
+    frequency VARCHAR(255) NOT NULL,
+    amount INTEGER NOT NULL DEFAULT 0,
+    [start] DATETIME NOT NULL,
 
     FOREIGN KEY(envelope_id) REFERENCES envelope(id)
 );

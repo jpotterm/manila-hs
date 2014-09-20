@@ -2,6 +2,11 @@
 
 module Command.Rule (listRulesCommand, addRuleCommand) where
 
+import Control.Monad
+import Data.Maybe
+import Data.List
+import Data.Time
+import Data.Time.Recurrence
 import Database.HDBC
 
 import Util
@@ -51,22 +56,6 @@ addRuleCommand args flags
     | 't' `elem` flags = timeRule args
     | otherwise = putStrLn "Command requires one of the following flags: -c, -t"
 
-    --conn <- getDbConnection
-    --instanceUUID <- getInstanceUUID conn
-
-    --username <- prompt "Mint.com username: "
-    --password <- prompt "Mint.com password: "
-
-    --let arguments = [ "add-generic-password"
-    --                , "-a", username
-    --                , "-s", "manila:" ++ toString instanceUUID
-    --                , "-w", password
-    --                , "-U"
-    --                ]
-
-    --(exitCode, output, _) <- readProcessWithExitCode "security" arguments []
-    --disconnect conn
-
 
 categoryRule :: [String] -> IO ()
 categoryRule (envelope:category:amount:[]) = do
@@ -85,18 +74,41 @@ categoryRule (envelope:category:amount:[]) = do
 categoryRule _ = putStrLn "Command requires 3 arguments"
 
 
+frequencyMap :: [(String, Freq)]
+frequencyMap = [("daily", daily), ("monthly", monthly), ("yearly", yearly)]
+
+
+showKeys :: [(String, a)] -> String
+showKeys = concat . (intersperse ", ") . fst . unzip
+
+
 timeRule :: [String] -> IO ()
-timeRule (envelope:schedule:amount:[]) = do
+timeRule (envelope:frequency:amountString:[]) = do
+    now <- getCurrentTime
+    addTimeRule envelope frequency amountString now
+
+timeRule (envelope:frequency:amountString:startString:[]) = do
+    tz <- getCurrentTimeZone
+    now <- getCurrentTime
+    let start = fromMaybe now $ parseLocalTime tz startString
+
+    addTimeRule envelope frequency amountString start
+
+timeRule _ = putStrLn "Command requires at least 3 arguments"
+
+
+addTimeRule :: String -> String -> String -> UTCTime -> IO ()
+addTimeRule envelope frequency amountString start = do
     conn <- getDbConnection
 
     envelopeId <- getEnvelopeId conn envelope
+    let amount = readInteger100 amountString
 
-    run conn
-        "INSERT INTO time_rule (envelope_id, schedule, amount) VALUES (?, ?, ?)"
-        [toSql envelopeId, toSql schedule, toSql amount]
+    case lookup frequency frequencyMap of
+        Just _ -> void $ run conn
+                             "INSERT INTO time_rule (envelope_id, frequency, amount, start) VALUES (?, ?, ?, ?)"
+                             [toSql envelopeId, toSql frequency, toSql amount, toSql start]
+        Nothing -> putStrLn $ "Incorrect frequency. Possible options are: " ++ showKeys frequencyMap
 
     commit conn
     disconnect conn
-
-timeRule _ = putStrLn "Command requires 3 arguments"
-

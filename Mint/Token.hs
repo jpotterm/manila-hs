@@ -27,4 +27,4 @@ getToken responseString = do
         //> hasName "input" >>> hasAttrValue "id" (== "javascript-token")
         >>> getAttrValue "value"
 
-    return . head $ token
+    return $ head token
