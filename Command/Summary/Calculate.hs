@@ -13,8 +13,11 @@ import Currency
 import Settings
 import Util
 
+-- amount, frequency, start
+data TimeRule = TimeRule Integer String UTCTime
 
-data TimeRule = TimeRule String Integer String UTCTime
+-- percentage, rule amount, start, transaction amount
+data CategoryRule = CategoryRule Double Integer UTCTime Integer
 
 
 calculateSummary :: IO (Integer, [Envelope])
@@ -35,63 +38,65 @@ calculateSummary = do
             ++ " ORDER BY envelope.name ASC")
         []
 
-    timeRulesResult <- quickQuery'
-        conn
-        ("SELECT envelope.name, time_rule.amount, time_rule.frequency, time_rule.start"
-            ++ " FROM envelope"
-            ++ " LEFT OUTER JOIN time_rule ON time_rule.envelope_id = envelope.id"
-            ++ " ORDER BY envelope.name ASC")
-        []
+    let eBalances = mapMaybe calcEnvelopeBalance envelopesResult
+    eBalancesWithRules <- mapM (calcRules' conn) eBalances
 
     disconnect conn
 
+    let totalRemainingBalance = totalAccountBalance - envelopeSum eBalancesWithRules
+    return (totalRemainingBalance, eBalancesWithRules)
+
+
+calcRules' :: Connection -> Envelope -> IO Envelope
+calcRules' conn envelope@(Envelope eId eName _) = do
     now <- getCurrentTime
 
+    -- TODO: query based on start date?
+    timeRulesResult <- quickQuery'
+        conn
+        ("SELECT time_rule.amount, time_rule.frequency, time_rule.start"
+            ++ " FROM time_rule"
+            ++ " WHERE time_rule.envelope_id = ?")
+        [toSql eId]
+
+    -- TODO: query based on start date
+    categoryRulesResult <- quickQuery'
+        conn
+        ("SELECT category_rule.percentage, category_rule.amount, category_rule.start, [transaction].amount"
+            ++ " FROM category_rule"
+            ++ " INNER JOIN [transaction] ON category_rule.category_id = [transaction].category_id"
+            ++ " WHERE category_rule.envelope_id = ? AND [transaction].[date] >= category_rule.start")
+        [toSql eId]
+
     let timeRules = map timeRuleFromSql timeRulesResult
+    let categoryRules = map categoryRuleFromSql categoryRulesResult
 
-    let eBalancesMaybe = map calcEnvelopeBalance envelopesResult
-    let eBalances = catMaybes eBalancesMaybe
-    let eBalancesWithRules = map (calcRules now timeRules) eBalances
-    let totalRemainingBalance = totalAccountBalance - envelopeSum eBalancesWithRules
-
-    return (totalAccountBalance, eBalancesWithRules)
-
-
--- calcRules' :: Connection -> Envelope -> IO Envelope
--- calcRules' conn (Envelope eName _) = do
---     now <- getCurrentTime
-
---     timeRulesResult <- quickQuery'
---         conn
---         ("SELECT time_rule.amount, time_rule.frequency, time_rule.start"
---             ++ " FROM envelope"
---             ++ " WHERE envelope.id = ?")
---         []
-
--- calcTimeRules' :: Connection -> Envelope -> IO Envelope
--- calcTimeRules' conn envelope = do
---     now <- getCurrentTime
-
-
-timeRuleFromSql :: [SqlValue] -> TimeRule
-timeRuleFromSql (eName:amount:frequency:start:[]) =
-    TimeRule (fromSql eName) (fromSql amount) (fromSql frequency) (fromSql start)
-
-
-calcRules :: UTCTime -> [TimeRule] -> Envelope -> Envelope
-calcRules now rules envelope = calcRelevantRules now (filter (equalEnvelope envelope) rules) envelope
-    where equalEnvelope (Envelope _ eName _) (TimeRule rName _ _ _) = eName == rName
-
-
-calcRelevantRules :: UTCTime -> [TimeRule] -> Envelope -> Envelope
-calcRelevantRules now rules envelope = foldr (calcRelevantRule now) envelope rules
+    let timeRuleEnvelope = foldr (calcTimeRule' now) envelope timeRules
+    let categoryRuleEnvelope = foldr calcCategoryRule' timeRuleEnvelope categoryRules
+    return categoryRuleEnvelope
 
 
 -- TODO: don't use fromJust, instead convert from database immediately
-calcRelevantRule :: UTCTime -> TimeRule -> Envelope -> Envelope
-calcRelevantRule now (TimeRule _ rAmount frequency start) (Envelope eId eName eAmount) =
+calcTimeRule' :: UTCTime -> TimeRule -> Envelope -> Envelope
+calcTimeRule' now (TimeRule rAmount frequency start) (Envelope eId eName eAmount) =
     let n = numberOfOccurrences start now (fromJust (lookup frequency frequencyMap))
     in  Envelope eId eName (eAmount + n * rAmount)
+
+
+calcCategoryRule' :: CategoryRule -> Envelope -> Envelope
+calcCategoryRule' (CategoryRule percentage rAmount _ tAmount) (Envelope eId eName eAmount) =
+    let amount = (fromIntegral eAmount) + percentage * (fromIntegral tAmount) + (fromIntegral rAmount)
+    in  Envelope eId eName (floor amount)
+
+
+timeRuleFromSql :: [SqlValue] -> TimeRule
+timeRuleFromSql (amount:frequency:start:[]) =
+    TimeRule (fromSql amount) (fromSql frequency) (fromSql start)
+
+
+categoryRuleFromSql :: [SqlValue] -> CategoryRule
+categoryRuleFromSql (percentage:rAmount:start:tAmount:[]) =
+    CategoryRule (fromSql percentage) (fromSql rAmount) (fromSql start) (fromSql tAmount)
 
 
 envelopeSum :: [Envelope] -> Integer
