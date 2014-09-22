@@ -27,7 +27,7 @@ formatSummary remainingBalance envelopes =
 
 
 summarizeEnvelope :: Envelope -> SummaryRow (String, String)
-summarizeEnvelope (Envelope name balance) = Body (name, formatCurrency balance)
+summarizeEnvelope (Envelope _ name balance) = Body (name, formatCurrency balance)
 
 
 summaryRowLeftWidth :: SummaryRow (String, String) -> Int

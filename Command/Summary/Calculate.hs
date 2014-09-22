@@ -26,7 +26,7 @@ calculateSummary = do
 
     envelopesResult <- quickQuery'
         conn
-        ("SELECT envelope.name, envelope.amount, SUM([transaction].amount)"
+        ("SELECT envelope.id, envelope.name, envelope.amount, SUM([transaction].amount)"
             ++ " FROM envelope"
             ++ " LEFT OUTER JOIN envelope_category ON envelope_category.envelope_id = envelope.id"
             ++ " LEFT OUTER JOIN category ON category.id = envelope_category.category_id OR category.parent_id = envelope_category.category_id"
@@ -80,7 +80,7 @@ timeRuleFromSql (eName:amount:frequency:start:[]) =
 
 calcRules :: UTCTime -> [TimeRule] -> Envelope -> Envelope
 calcRules now rules envelope = calcRelevantRules now (filter (equalEnvelope envelope) rules) envelope
-    where equalEnvelope (Envelope eName _) (TimeRule rName _ _ _) = eName == rName
+    where equalEnvelope (Envelope _ eName _) (TimeRule rName _ _ _) = eName == rName
 
 
 calcRelevantRules :: UTCTime -> [TimeRule] -> Envelope -> Envelope
@@ -89,20 +89,20 @@ calcRelevantRules now rules envelope = foldr (calcRelevantRule now) envelope rul
 
 -- TODO: don't use fromJust, instead convert from database immediately
 calcRelevantRule :: UTCTime -> TimeRule -> Envelope -> Envelope
-calcRelevantRule now (TimeRule _ rAmount frequency start) (Envelope eName eAmount) =
+calcRelevantRule now (TimeRule _ rAmount frequency start) (Envelope eId eName eAmount) =
     let n = numberOfOccurrences start now (fromJust (lookup frequency frequencyMap))
-    in  Envelope eName (eAmount + n * rAmount)
+    in  Envelope eId eName (eAmount + n * rAmount)
 
 
 envelopeSum :: [Envelope] -> Integer
-envelopeSum = sum . map (\(Envelope _ amount) -> amount)
+envelopeSum = sum . map (\(Envelope _ _ amount) -> amount)
 
 
 calcEnvelopeBalance :: [SqlValue] -> Maybe Envelope
-calcEnvelopeBalance (eName:eAmount:tAmount:[]) =
-    case (safeFromSql eName, safeFromSql eAmount, safeFromSql tAmount) of
-        (Right eNameConverted, Right eAmountConverted, Right tAmountConverted) ->
-            Just (Envelope eNameConverted (eAmountConverted - tAmountConverted))
-        (Right eNameConverted, Right eAmountConverted, _) ->
-            Just (Envelope eNameConverted eAmountConverted)
+calcEnvelopeBalance (eId:eName:eAmount:tAmount:[]) =
+    case (safeFromSql eId, safeFromSql eName, safeFromSql eAmount, safeFromSql tAmount) of
+        (Right eIdConverted, Right eNameConverted, Right eAmountConverted, Right tAmountConverted) ->
+            Just (Envelope eIdConverted eNameConverted (eAmountConverted - tAmountConverted))
+        (Right eIdConverted, Right eNameConverted, Right eAmountConverted, _) ->
+            Just (Envelope eIdConverted eNameConverted eAmountConverted)
         otherwise -> Nothing
