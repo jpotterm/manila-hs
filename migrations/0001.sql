@@ -52,7 +52,9 @@ CREATE TABLE IF NOT EXISTS category_rule (
     id INTEGER PRIMARY KEY,
     envelope_id INTEGER,
     category_id INTEGER,
+    percentage REAL NOT NULL DEFAULT 0,
     amount INTEGER NOT NULL DEFAULT 0,
+    [start] DATETIME NOT NULL,
 
     FOREIGN KEY(envelope_id) REFERENCES envelope(id),
     FOREIGN KEY(category_id) REFERENCES category(id)

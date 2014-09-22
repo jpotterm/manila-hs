@@ -58,21 +58,32 @@ addRuleCommand args flags
     | otherwise = putStrLn "Command requires one of the following flags: -c, -t"
 
 
+-- TODO: Display error instead of defaulting to now if startString is unparseable
+-- TODO: Allow startString to be either a date or datetime
 categoryRule :: [String] -> IO ()
-categoryRule (envelope:category:amount:[]) = do
+categoryRule (envelope:category:percentageString:amountString:rest) = do
     conn <- getDbConnection
 
     envelopeId <- getEnvelopeId conn envelope
     categoryId <- getCategoryId conn category
 
+    let percentage = read percentageString :: Double
+    let amount = readInteger100 amountString
+
+    now <- getCurrentTime
+    tz <- getCurrentTimeZone
+    let start = case rest of
+                     [] -> now
+                     (startString:[]) -> fromMaybe now $ parseLocalTime tz startString
+
     run conn
-        "INSERT INTO category_rule (envelope_id, category_id, amount) VALUES (?, ?, ?)"
-        [toSql envelopeId, toSql categoryId, toSql amount]
+        "INSERT INTO category_rule (envelope_id, category_id, percentage, amount, start) VALUES (?, ?, ?, ?, ?)"
+        [toSql envelopeId, toSql categoryId, toSql percentage, toSql amount, toSql start]
 
     commit conn
     disconnect conn
 
-categoryRule _ = putStrLn "Command requires 3 arguments"
+categoryRule _ = putStrLn "Command requires at least 4 arguments"
 
 
 showKeys :: [(String, a)] -> String
@@ -80,26 +91,17 @@ showKeys = concat . (intersperse ", ") . fst . unzip
 
 
 timeRule :: [String] -> IO ()
-timeRule (envelope:frequency:amountString:[]) = do
-    now <- getCurrentTime
-    addTimeRule envelope frequency amountString now
-
-timeRule (envelope:frequency:amountString:startString:[]) = do
-    tz <- getCurrentTimeZone
-    now <- getCurrentTime
-    let start = fromMaybe now $ parseLocalTime tz startString
-
-    addTimeRule envelope frequency amountString start
-
-timeRule _ = putStrLn "Command requires at least 3 arguments"
-
-
-addTimeRule :: String -> String -> String -> UTCTime -> IO ()
-addTimeRule envelope frequency amountString start = do
+timeRule (envelope:frequency:amountString:rest) = do
     conn <- getDbConnection
 
     envelopeId <- getEnvelopeId conn envelope
     let amount = readInteger100 amountString
+
+    now <- getCurrentTime
+    tz <- getCurrentTimeZone
+    let start = case rest of
+                     [] -> now
+                     (startString:[]) -> fromMaybe now $ parseLocalTime tz startString
 
     case lookup frequency frequencyMap of
         Just _ -> void $ run conn

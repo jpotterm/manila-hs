@@ -57,6 +57,21 @@ calculateSummary = do
     return (totalAccountBalance, eBalancesWithRules)
 
 
+-- calcRules' :: Connection -> Envelope -> IO Envelope
+-- calcRules' conn (Envelope eName _) = do
+--     now <- getCurrentTime
+
+--     timeRulesResult <- quickQuery'
+--         conn
+--         ("SELECT time_rule.amount, time_rule.frequency, time_rule.start"
+--             ++ " FROM envelope"
+--             ++ " WHERE envelope.id = ?")
+--         []
+
+-- calcTimeRules' :: Connection -> Envelope -> IO Envelope
+-- calcTimeRules' conn envelope = do
+--     now <- getCurrentTime
+
 
 timeRuleFromSql :: [SqlValue] -> TimeRule
 timeRuleFromSql (eName:amount:frequency:start:[]) =
