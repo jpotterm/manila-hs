@@ -3,7 +3,8 @@
 module Mint.Transaction (mintTransactions) where
 
 import Control.Lens
-import qualified Data.ByteString.Lazy.Char8 as LBS
+import qualified Data.Text.Lazy as LT
+import qualified Data.Text.Lazy.Encoding as LTE
 import Data.Time.Clock
 import Data.Time.Format
 import Database.HDBC
@@ -22,7 +23,7 @@ mintTransactions session = do
     transactions <- Wreq.getWith session transactionUrl
 
     deleteTransactions
-    importTransactions $ LBS.unpack $ transactions ^. Wreq.responseBody
+    importTransactions $ LT.unpack $ LTE.decodeUtf8 $ transactions ^. Wreq.responseBody
 
 
 importTransactions :: String -> IO ()

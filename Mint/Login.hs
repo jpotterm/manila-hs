@@ -5,9 +5,9 @@ module Mint.Login (mintLogin) where
 import qualified Data.Aeson as Aeson
 import Data.Aeson.Lens (key)
 import Control.Lens
-import qualified Data.ByteString.Char8 as BS
-import qualified Data.ByteString.Lazy.Char8 as LBS
+import qualified Data.ByteString.Lazy as LBS
 import qualified Data.Text as Text
+import qualified Data.Text.Encoding as TE
 import Network.HTTP.Client (CookieJar)
 import qualified Network.Wreq as Wreq
 
@@ -19,19 +19,21 @@ mintLogin username password = do
     let preLoginUrl = Settings.mintHostname ++ "/login.event?task=L"
     let loginUrl = Settings.mintHostname ++ "/loginUserSubmit.xevent"
 
-    -- Pre-login
+    -- Pre-login. For some reason Mint.com requires you to visit the login page
+    -- before you post login credentials. If this step is left out then login
+    -- will fail intermittently.
     preLogin <- Wreq.get loginUrl
     let preLoginCookieJar = preLogin ^. Wreq.responseCookieJar
 
     -- Login
-    let loginBody = [ "username" Wreq.:= BS.pack username
-                    , "password" Wreq.:= BS.pack password
-                    , "task" Wreq.:= BS.pack "L"
-                    , "browser" Wreq.:= BS.pack "firefox"
-                    , "browserVersion" Wreq.:= BS.pack "27"
-                    , "os" Wreq.:= BS.pack "linux"
+    let loginBody = [ "username" Wreq.:= Text.pack username
+                    , "password" Wreq.:= Text.pack password
+                    , "task" Wreq.:= Text.pack "L"
+                    , "browser" Wreq.:= Text.pack "firefox"
+                    , "browserVersion" Wreq.:= Text.pack "27"
+                    , "os" Wreq.:= Text.pack "linux"
                     ]
-    let loginOpts = Wreq.defaults & Wreq.cookies .~ preLoginCookieJar & Wreq.header "accept" .~ [(BS.pack "application/json")]
+    let loginOpts = Wreq.defaults & Wreq.cookies .~ preLoginCookieJar & Wreq.header "accept" .~ [(TE.encodeUtf8 "application/json")]
     login <- Wreq.postWith loginOpts loginUrl loginBody
     let loginCookieJar = login ^. Wreq.responseCookieJar
 
@@ -49,5 +51,5 @@ getToken response =
 mintOptions :: CookieJar -> String -> (Wreq.Options, Wreq.Options)
 mintOptions loginCookieJar token =
     let session = Wreq.defaults & Wreq.cookies .~ loginCookieJar
-        tokenSession = session & Wreq.header "token" .~ [(BS.pack token)]
+        tokenSession = session & Wreq.header "token" .~ [(TE.encodeUtf8 $ Text.pack token)]
     in  (session, tokenSession)

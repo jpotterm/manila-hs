@@ -5,7 +5,6 @@ module Command.Pull (pullCommand) where
 import System.Directory
 import System.Posix.User
 import System.Process
-import qualified Data.ByteString.Char8 as BS
 
 import Mint.Account
 import Mint.Category

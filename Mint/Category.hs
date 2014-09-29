@@ -3,8 +3,9 @@
 module Mint.Category (mintCategories) where
 
 import Control.Lens
-import qualified Data.ByteString.Lazy.Char8 as LBS
 import Data.List
+import qualified Data.Text.Lazy as LT
+import qualified Data.Text.Lazy.Encoding as LTE
 import Database.HDBC
 import Database.HDBC.Sqlite3
 import qualified Network.Wreq as Wreq
@@ -19,7 +20,7 @@ mintCategories session = do
     let categoryUrl = Settings.mintHostname ++ "/popup.xevent?task=categories"
     categories <- Wreq.getWith session categoryUrl
 
-    getCategories $ LBS.unpack $ categories ^. Wreq.responseBody
+    getCategories $ LT.unpack $ LTE.decodeUtf8 $ categories ^. Wreq.responseBody
 
 
 getCategories :: String -> IO ()

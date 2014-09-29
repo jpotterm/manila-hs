@@ -3,11 +3,9 @@
 module Mint.Account (mintAccounts) where
 
 import Control.Lens
-import Control.Monad.Trans
 import Data.Aeson
 import Data.Aeson.Lens (key)
-import qualified Data.ByteString.Char8 as BS
-import qualified Data.HashMap.Strict as HM
+import qualified Data.Text as Text
 import Database.HDBC
 import Database.HDBC.Sqlite3
 import GHC.Generics
@@ -46,7 +44,7 @@ mintAccounts tokenSession = do
                         ++ "]"
                     ++ "}"
                 ++ "}]"
-    response <- Wreq.postWith tokenSession accountUrl ["input" Wreq.:= BS.pack accountJson]
+    response <- Wreq.postWith tokenSession accountUrl ["input" Wreq.:= Text.pack accountJson]
 
     let resultMaybe = response ^? Wreq.responseBody . key "response" . key "1" . key "response"
     case fmap fromJSON resultMaybe :: Maybe (Result [JsonAccount]) of
