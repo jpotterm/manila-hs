@@ -1,22 +1,35 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Mint.Transaction (importTransactions, deleteTransactions) where
+module Mint.Transaction (mintTransactions) where
 
+import Control.Lens
+import qualified Data.ByteString.Lazy.Char8 as LBS
 import Data.Time.Clock
 import Data.Time.Format
 import Database.HDBC
 import Database.HDBC.Sqlite3
+import qualified Network.Wreq as Wreq
 import System.Locale
 import Text.CSV
 
+import qualified Settings
 import Util
 
 
-importTransactions :: IO ()
-importTransactions = do
-    parseResult <- parseCSVFromFile "project/transactions.csv"
+mintTransactions :: Wreq.Options -> IO ()
+mintTransactions session = do
+    let transactionUrl = Settings.mintHostname ++ "/transactionDownload.event"
+    transactions <- Wreq.getWith session transactionUrl
+
+    deleteTransactions
+    importTransactions $ LBS.unpack $ transactions ^. Wreq.responseBody
+
+
+importTransactions :: String -> IO ()
+importTransactions csv = do
+    let parseResult = parseCSV "transactions.csv" csv
     case parseResult of
-        Left _ -> putStrLn "Could not parse transactions CSV file."
+        Left _ -> putStrLn "Could not parse transactions CSV."
         Right csv -> importCSV (tail csv)
 
 
@@ -52,5 +65,3 @@ importRecord conn (date:description:originalDescription:amount:_:category:accoun
 
     return ()
 importRecord conn _ = return ()
-
-

@@ -1,34 +1,32 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Mint.Category (getCategoriesRequest) where
+module Mint.Category (mintCategories) where
 
-import Control.Monad.Trans
-import qualified Data.ByteString.Char8
-import qualified Data.ByteString.Lazy.Char8
-import qualified Data.ByteString.Lazy as L
+import Control.Lens
+import qualified Data.ByteString.Lazy.Char8 as LBS
 import Data.List
 import Database.HDBC
 import Database.HDBC.Sqlite3
-import Network.HTTP.Conduit
-import Network.HTTP.Conduit.Browser
+import qualified Network.Wreq as Wreq
 import Text.XML.HXT.Core
 
+import Settings
 import Util
 
 
-getCategoriesRequest :: BrowserAction ()
-getCategoriesRequest = do
-    request <- parseUrl "https://wwws.mint.com/popup.xevent?task=categories"
-    response <- makeRequestLbs request
+mintCategories :: Wreq.Options -> IO ()
+mintCategories session = do
+    let categoryUrl = Settings.mintHostname ++ "/popup.xevent?task=categories"
+    categories <- Wreq.getWith session categoryUrl
 
-    liftIO $ getCategories response
+    getCategories $ LBS.unpack $ categories ^. Wreq.responseBody
 
 
-getCategories :: Response L.ByteString -> IO ()
-getCategories response = do
+getCategories :: String -> IO ()
+getCategories categoriesString = do
     conn <- getDbConnection
 
-    categories <- extractCategories $ Data.ByteString.Lazy.Char8.unpack (responseBody response)
+    categories <- extractCategories categoriesString
     commit conn
 
     categoryIds <- mapM (saveCategory conn) categories

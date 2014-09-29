@@ -1,4 +1,4 @@
-module Settings (frequencyMap) where
+module Settings (frequencyMap, mintHostname) where
 
 import Data.Time.Recurrence
 
@@ -9,3 +9,6 @@ frequencyMap = [ ("daily", daily)
                , ("monthly", monthly)
                , ("yearly", yearly)
                ]
+
+mintHostname :: String
+mintHostname = "https://wwws.mint.com"

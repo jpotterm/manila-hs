@@ -1,20 +1,20 @@
 {-# LANGUAGE OverloadedStrings, DeriveGeneric #-}
 
-module Mint.Account (getAccountsRequest) where
+module Mint.Account (mintAccounts) where
 
+import Control.Lens
 import Control.Monad.Trans
 import Data.Aeson
-import qualified Data.ByteString.Char8
-import qualified Data.ByteString.Lazy.Char8
-import qualified Data.ByteString.Lazy as L
+import Data.Aeson.Lens (key)
+import qualified Data.ByteString.Char8 as BS
 import qualified Data.HashMap.Strict as HM
 import Database.HDBC
 import Database.HDBC.Sqlite3
 import GHC.Generics
-import Network.HTTP.Conduit
-import Network.HTTP.Conduit.Browser
 import Network.URI
+import qualified Network.Wreq as Wreq
 
+import qualified Settings
 import Util
 
 
@@ -25,12 +25,10 @@ data JsonAccount = JsonAccount { name     :: String
 instance FromJSON JsonAccount
 
 
-getAccountsRequest :: String -> BrowserAction (Response L.ByteString)
-getAccountsRequest token = do
-    let encodedToken = escapeURIString isUnescapedInURI token
-    requestUrl <- parseUrl $ "https://wwws.mint.com/bundledServiceController.xevent?legacy=false"
-    let requestMethod = requestUrl {method = "POST", requestHeaders = [("token", Data.ByteString.Char8.pack encodedToken)]}
-    let input = "[{"
+mintAccounts :: Wreq.Options -> IO ()
+mintAccounts tokenSession = do
+    let accountUrl = Settings.mintHostname ++ "/bundledServiceController.xevent?legacy=false"
+    let accountJson = "[{"
                     ++ "\"id\": \"1\","
                     ++ "\"service\": \"MintAccountService\","
                     ++ "\"task\": \"getAccountsSortedByBalanceDescending\","
@@ -48,24 +46,13 @@ getAccountsRequest token = do
                         ++ "]"
                     ++ "}"
                 ++ "}]"
+    response <- Wreq.postWith tokenSession accountUrl ["input" Wreq.:= BS.pack accountJson]
 
-    let request = urlEncodedBody [("input", Data.ByteString.Char8.pack input)] requestMethod
-    response <- makeRequestLbs request
-
-    let result = decode (responseBody response) :: Maybe Value
-
-    case result of
-        Just (Object o) -> do
-            let Just (Object o1) = HM.lookup "response" o
-            let Just (Object o2) = HM.lookup "1" o1
-            let Just o3 = HM.lookup "response" o2
-
-            case fromJSON o3 :: Result [JsonAccount] of
-                Error message -> liftIO $ putStrLn ("fromJSON error: " ++ message)
-                Success jsonAccounts -> liftIO . updateAccounts $ filter isActive jsonAccounts
-        _ -> liftIO $ putStrLn $ "Decode error. Response was: " ++ show response
-
-    return response
+    let resultMaybe = response ^? Wreq.responseBody . key "response" . key "1" . key "response"
+    case fmap fromJSON resultMaybe :: Maybe (Result [JsonAccount]) of
+         Just (Success jsonAccounts) -> updateAccounts $ filter isActive jsonAccounts
+         Just (Error message)        -> putStrLn ("Error: could not decode account JSON response. " ++ message)
+         Nothing                     -> putStrLn "Error: could not decode account JSON response."
 
 
 updateAccounts :: [JsonAccount] -> IO ()
