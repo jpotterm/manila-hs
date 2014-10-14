@@ -9,7 +9,6 @@ module Util
     , getDbConnection
     , getCategoryId
     , getAccountId
-    , getInstanceUUID
     , getEnvelopeId
     , defaultFromSql
     , readInteger100
@@ -26,7 +25,6 @@ import Data.Maybe
 import Data.List
 import Data.Time
 import Data.Time.Recurrence (Freq, recur, starting)
-import Data.UUID (UUID, fromString)
 import Database.HDBC
 import Database.HDBC.Sqlite3
 import System.IO
@@ -35,7 +33,7 @@ import System.Locale (defaultTimeLocale)
 
 getDbConnection :: IO Connection
 getDbConnection = do
-    conn <- connectSqlite3 "project/manila.db"
+    conn <- connectSqlite3 "manila.db"
     runRaw conn "COMMIT; PRAGMA foreign_keys = ON; BEGIN TRANSACTION"
     return conn
 
@@ -49,12 +47,12 @@ executeSqlFile conn file = do
 
 updateOrInsert :: Connection -> (String, [SqlValue]) -> (String, [SqlValue]) -> (String, [SqlValue]) -> IO Integer
 updateOrInsert conn (selectSql, selectParams) (updateSql, updateParams) (insertSql, insertParams) = do
-	selectResult <- quickQuery' conn selectSql selectParams
-	let result = case selectResult of
-		[] -> run conn insertSql insertParams
-		_ -> run conn updateSql updateParams
-	commit conn
-	result
+    selectResult <- quickQuery' conn selectSql selectParams
+    let result = case selectResult of
+                      [] -> run conn insertSql insertParams
+                      _ -> run conn updateSql updateParams
+    commit conn
+    result
 
 
 getOrCreate :: Connection -> (String, [SqlValue]) -> (String, [SqlValue]) -> IO [[SqlValue]]
@@ -90,12 +88,6 @@ getAccountId :: Connection -> String -> IO Integer
 getAccountId conn account = do
     selectResult <- quickQuery' conn "SELECT id FROM account WHERE name = ?" [toSql account]
     return . fromSql . head . head $ selectResult
-
-
-getInstanceUUID :: Connection -> IO UUID
-getInstanceUUID conn = do
-    result <- quickQuery' conn "SELECT instance_uuid FROM instance_uuid WHERE id = 1" []
-    return . fromJust . fromString . fromSql . head . head $ result
 
 
 getEnvelopeId :: Connection -> String -> IO Integer
