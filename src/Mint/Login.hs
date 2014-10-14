@@ -29,9 +29,6 @@ mintLogin username password = do
     let loginBody = [ "username" Wreq.:= Text.pack username
                     , "password" Wreq.:= Text.pack password
                     , "task" Wreq.:= Text.pack "L"
-                    , "browser" Wreq.:= Text.pack "firefox"
-                    , "browserVersion" Wreq.:= Text.pack "27"
-                    , "os" Wreq.:= Text.pack "linux"
                     ]
     let loginOpts = Wreq.defaults & Wreq.cookies .~ preLoginCookieJar & Wreq.header "accept" .~ [(TE.encodeUtf8 "application/json")]
     login <- Wreq.postWith loginOpts loginUrl loginBody
