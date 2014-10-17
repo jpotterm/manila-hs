@@ -11,6 +11,6 @@ import Command.Migrate
 initCommand :: [String] -> String -> IO ()
 initCommand args flags = do
     conn <- getDbConnection
-    migrate conn
+    migrate conn False
     commit conn
     disconnect conn

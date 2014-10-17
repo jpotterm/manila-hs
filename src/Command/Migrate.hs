@@ -2,6 +2,9 @@ module Command.Migrate (migrateCommand, migrate, currentMigration, futureMigrati
 
 import Control.Monad (when)
 import Data.Char
+import Data.Maybe (fromJust)
+import Data.UUID (toString)
+import Data.UUID.V1 (nextUUID)
 import Database.HDBC
 import Database.HDBC.Sqlite3
 import System.IO
@@ -15,23 +18,39 @@ import Util
 migrateCommand :: [String] -> String -> IO ()
 migrateCommand args flags = do
     conn <- getDbConnection
-    migrate conn
+    migrate conn True
     disconnect conn
 
-migrateFrom :: Connection -> Integer -> IO ()
-migrateFrom conn from = do
+
+migrateFrom :: Connection -> Integer -> Bool -> IO ()
+migrateFrom conn from createBackup = do
     futureMigrationPaths <- futureMigrations from
 
     when (length futureMigrationPaths /= 0) $ do
-        mapM_ (executeSqlFile conn) futureMigrationPaths
-        let lastMigration = read (filter isDigit (takeFileName (last futureMigrationPaths))) :: Integer
+        when createBackup backupProject
+        runMigrations conn futureMigrationPaths
 
-        updateOrInsert conn
-            ("SELECT * FROM schema_migration WHERE id = 1", [])
-            ("UPDATE schema_migration SET migration_number=? WHERE id = 1", [])
-            ("INSERT INTO schema_migration (migration_number) VALUES (?)", [toSql lastMigration])
 
-        return ()
+runMigrations :: Connection -> [FilePath] -> IO ()
+runMigrations conn migrationPaths = do
+    mapM_ (executeSqlFile conn) migrationPaths
+    let lastMigration = read (filter isDigit (takeFileName (last migrationPaths))) :: Integer
+
+    updateOrInsert conn
+        ("SELECT * FROM schema_migration WHERE id = 1", [])
+        ("UPDATE schema_migration SET migration_number=? WHERE id = 1", [])
+        ("INSERT INTO schema_migration (migration_number) VALUES (?)", [toSql lastMigration])
+
+    return ()
+
+
+backupProject :: IO ()
+backupProject = do
+    uuid <- nextUUID
+    let backupFileName = "manila_backup_" ++ (toString $ fromJust uuid) ++ ".db"
+    copyFile "manila.db" backupFileName
+    putStrLn $ "A backup of this project has been saved to " ++ backupFileName
+
 
 currentMigration :: Connection -> IO Integer
 currentMigration conn = do
@@ -40,6 +59,7 @@ currentMigration conn = do
                   Left e   -> 0
                   Right [] -> 0
                   Right x  -> fromSql $ head (head x)
+
 
 futureMigrations :: Integer -> IO [FilePath]
 futureMigrations from = do
@@ -50,15 +70,18 @@ futureMigrations from = do
     let futureMigrations = dropWhile (`stringLEInteger` from) migrationFiles
     return $ map (migrationDir </>) futureMigrations
 
+
 hasExtension :: String -> FilePath -> Bool
 hasExtension extension path =
     let (_, ext) = splitExtension path
     in  extension == ext
 
+
 stringLEInteger :: String -> Integer -> Bool
 s `stringLEInteger` i = read (filter isDigit s) <= i
 
-migrate :: Connection -> IO ()
-migrate conn = do
+
+migrate :: Connection -> Bool -> IO ()
+migrate conn createBackup = do
     from <- currentMigration conn
-    migrateFrom conn from
+    migrateFrom conn from createBackup
