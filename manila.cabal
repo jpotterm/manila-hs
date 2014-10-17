@@ -17,6 +17,7 @@ Executable manila
         aeson == 0.7.*,
         boxes == 0.1.*,
         bytestring == 0.10.*,
+        cond == 0.4.*,
         convertible == 1.1.*,
         csv == 0.1.*,
         directory == 1.2.*,

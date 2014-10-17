@@ -1,5 +1,6 @@
 module Main where
 
+import Control.Conditional ((<&&>))
 import Control.Monad (when)
 import Data.Char (isLetter)
 import Data.List
@@ -13,36 +14,34 @@ import CommandType
 import Command.Migrate (currentMigration, futureMigrations)
 
 
-nonDatabaseCommands :: [String]
-nonDatabaseCommands = ["init", "help"]
-
-
 validate :: String -> IO Bool
-validate command = do
-    dbExists <- doesFileExist "manila.db"
-    validateDatabaseExists command dbExists
-    validateMigrations dbExists
-    return $ validateContinueCommand command dbExists
+validate command = validateDatabaseExists command <&&> validateMigrations command
 
 
-validateContinueCommand :: String -> Bool -> Bool
-validateContinueCommand command dbExists = dbExists || command `elem` nonDatabaseCommands
+validateDatabaseExists :: String -> IO Bool
+validateDatabaseExists command
+    | command `elem` ["init", "help"] = return True
+    | otherwise = do
+        dbExists <- doesFileExist "manila.db"
+        if dbExists
+            then return True
+            else do
+                putStrLn "Could not find 'manila.db' in this directory. Run 'manila init' to create a new manila project in this directory."
+                return False
 
 
-validateDatabaseExists :: String -> Bool -> IO ()
-validateDatabaseExists command dbExists =
-    let needsDatabase = not $ command `elem` nonDatabaseCommands
-    in  when (not dbExists && needsDatabase) $
-             putStrLn "Could not find 'manila.db' in this directory. Run 'manila init' to create a new manila project in this directory."
-
-
-validateMigrations :: Bool -> IO ()
-validateMigrations dbExists =
-    when dbExists $ do
+validateMigrations :: String -> IO Bool
+validateMigrations command
+    | command `elem` ["init", "help", "migrate"] = return True
+    | otherwise = do
         conn <- getDbConnection
         from <- currentMigration conn
         migrations <- futureMigrations from
-        when (length migrations /= 0) $ putStrLn "You should migrate"
+        if (length migrations == 0)
+            then return True
+            else do
+                putStrLn "This project was created by an older version of manila. Run 'manila migrate' to upgrade it."
+                return False
 
 
 isFlag :: String -> Bool
