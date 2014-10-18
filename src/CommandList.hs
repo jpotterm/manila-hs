@@ -31,28 +31,28 @@ commands = [ Command { name="init"
                      }
            , Command { name="pull"
                      , function=pullCommand
-                     , docSummary="Download and import transactions and account balances from Mint.com"
+                     , docSummary="Download and import data from Mint.com"
                      , doc="manila pull\n\nDownload and import transactions and account balances from Mint.com."
-                     }
-           , Command { name="envelope"
-                     , function=envelopeCommand
-                     , docSummary="Add an envelope"
-                     , doc="manila envelope <name>\n\nAdd an envelope."
-                     }
-           , Command { name="transfer"
-                     , function=transferCommand
-                     , docSummary="Transfer money to an envelope (use a negative amount to transfer from envelope)"
-                     , doc="manila transfer <amount> <envelope>\n\nTransfer money to an envelope (use a negative amount to transfer from envelope)."
                      }
            , Command { name="summary"
                      , function=summaryCommand
                      , docSummary="Summary of envelope and account balances"
                      , doc="manila summary\n\nSummary of envelope and account balances."
                      }
+           , Command { name="envelope"
+                     , function=envelopeCommand
+                     , docSummary="Add an envelope"
+                     , doc="manila envelope <name>\n\nAdd an envelope. Use the 'summary' command to see current envelopes."
+                     }
+           , Command { name="transfer"
+                     , function=transferCommand
+                     , docSummary="Transfer money to an envelope"
+                     , doc="manila transfer <amount> <envelope>\n\nTransfer money to an envelope. Use a negative amount to transfer from envelope."
+                     }
            , Command { name="attach"
                      , function=attachCommand
                      , docSummary="Attach Mint.com category to envelope"
-                     , doc="manila attach <envelope> <category>\n\nAttach Mint.com category to envelope."
+                     , doc="manila attach <envelope> <category>\n\nAttach Mint.com category to envelope. This means that all transactions from <category> will come out of (or go into) <envelope>."
                      }
            , Command { name="categories"
                      , function=categoriesCommand

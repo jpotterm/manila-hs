@@ -9,11 +9,11 @@ import CommandType
 
 
 helpCommand :: [String] -> String -> IO ()
-helpCommand args flags = do
-    putStrLn $ case args of
-        [] -> helpSummary
-        (command:[]) -> helpForCommand command
-        otherwise -> "Command takes at most 1 argument."
+helpCommand args flags =
+    case args of
+        []           -> putStr helpSummary
+        (command:[]) -> putStrLn $ helpForCommand command
+        otherwise    -> putStrLn "Command takes at most 1 argument."
 
 
 helpSummary :: String
@@ -28,7 +28,7 @@ helpForCommand :: String -> String
 helpForCommand command =
     let commandObjectMaybe = find (\x -> name x == command) commands
         docMaybe = fmap doc commandObjectMaybe
-    in  fromMaybe (command ++ " is not a command.") docMaybe
+    in  fromMaybe ("'" ++ command ++ "' is not a command.") docMaybe
 
 
 commandToRow :: Command -> (String, String)

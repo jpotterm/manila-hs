@@ -2,6 +2,9 @@
 
 module Command.Pull (pullCommand) where
 
+import Data.Foldable (mapM_)
+import qualified Network.Wreq as Wreq
+import Prelude hiding (mapM_)
 import System.Directory
 import System.Posix.User
 import System.Process
@@ -19,7 +22,11 @@ pullCommand args flags = do
     username <- prompt "Mint.com username: "
     password <- promptPassword "Mint.com password: "
 
-    (session, tokenSession) <- mintLogin username password
+    loginResult <- mintLogin username password
+    mapM_ doImport loginResult
+
+doImport :: (Wreq.Options, Wreq.Options) -> IO ()
+doImport (session, tokenSession) = do
     mintAccounts tokenSession
     mintCategories session
     mintTransactions session

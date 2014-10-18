@@ -14,7 +14,7 @@ import qualified Network.Wreq as Wreq
 import qualified Settings
 
 
-mintLogin :: String -> String -> IO (Wreq.Options, Wreq.Options)
+mintLogin :: String -> String -> IO (Maybe (Wreq.Options, Wreq.Options))
 mintLogin username password = do
     let preLoginUrl = Settings.mintHostname ++ "/login.event?task=L"
     let loginUrl = Settings.mintHostname ++ "/loginUserSubmit.xevent"
@@ -32,9 +32,21 @@ mintLogin username password = do
                     ]
     let loginOpts = Wreq.defaults & Wreq.cookies .~ preLoginCookieJar & Wreq.header "accept" .~ [(TE.encodeUtf8 "application/json")]
     login <- Wreq.postWith loginOpts loginUrl loginBody
-    let loginCookieJar = login ^. Wreq.responseCookieJar
 
-    return $ mintOptions loginCookieJar $ getToken login
+    let (loginSuccess, errorMessage) = checkLoginSuccess login
+    if loginSuccess
+        then return $ Just $ mintOptions (login ^. Wreq.responseCookieJar) (getToken login)
+        else do
+            putStrLn $ "Mint.com login failed: " ++ errorMessage
+            return Nothing
+
+
+checkLoginSuccess :: Wreq.Response LBS.ByteString -> (Bool, String)
+checkLoginSuccess response =
+    let maybeErrorMessage = response ^? Wreq.responseBody . key "error" . key "vError" . key "copy"
+    in  case maybeErrorMessage of
+             Just (Aeson.String errorMessage) -> (False, Text.unpack errorMessage)
+             otherwise                        -> (True, "")
 
 
 getToken :: Wreq.Response LBS.ByteString -> String
