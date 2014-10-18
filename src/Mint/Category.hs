@@ -42,10 +42,11 @@ getCategories categoriesString = do
 
 saveCategory :: Connection -> (String, [String]) -> IO [Integer]
 saveCategory conn (category, subcategories) = do
-    run conn "INSERT INTO category (name) VALUES (?)" [toSql category]
-    commit conn
+    result <- getOrCreate conn
+        ("SELECT id FROM category WHERE name = ? AND parent_id IS NULL", [toSql category])
+        ("INSERT INTO category (name) VALUES (?)", [toSql category])
 
-    categoryId <- getCategoryId conn category
+    let categoryId = fromSql . head . head $ result
     subcategoryIds <- mapM (saveSubcategory conn categoryId) subcategories
 
     return (categoryId:subcategoryIds)

@@ -63,7 +63,6 @@ getOrCreate conn (selectSql, selectParams) (insertSql, insertParams) = do
         run conn insertSql insertParams
         commit conn
 
-    --TODO return selectResultMaybe instead
     quickQuery' conn selectSql selectParams
 
 
