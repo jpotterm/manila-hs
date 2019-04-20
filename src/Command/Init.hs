@@ -17,6 +17,6 @@ initCommand args flags = do
         then putStrLn "There is already a manila project in this directory."
         else do
             conn <- getDbConnection
-            migrate conn False
+            migrate conn
             commit conn
             disconnect conn

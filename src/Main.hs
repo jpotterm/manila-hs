@@ -11,7 +11,7 @@ import System.Environment
 import Util
 import CommandList
 import CommandType
-import Command.Migrate (currentMigration, futureMigrations)
+import Command.Migrate (currentMigration, migrationRequired)
 
 
 validate :: String -> IO Bool
@@ -35,13 +35,9 @@ validateMigrations command
     | command `elem` ["init", "help", "migrate"] = return True
     | otherwise = do
         conn <- getDbConnection
-        from <- currentMigration conn
-        migrations <- futureMigrations from
-        if (length migrations == 0)
-            then return True
-            else do
-                putStrLn "This project was created by an older version of manila. Run 'manila migrate' to upgrade it."
-                return False
+        required <- migrationRequired conn
+        when (not required) $ putStrLn "This project was created by an older version of manila. Run 'manila migrate' to upgrade it."
+        return required
 
 
 isFlag :: String -> Bool
